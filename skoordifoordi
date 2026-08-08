@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit Stack Calculator</title>
+<style>
+  body {
+    font-family: system-ui, Arial, sans-serif;
+    max-width: 480px;
+    margin: 40px auto;
+    padding: 0 16px;
+    background: #f5f5f7;
+    color: #1d1d1f;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+  }
+  p.subtitle {
+    color: #6e6e73;
+    margin-top: 0;
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+  }
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    margin-top: 14px;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+  }
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    font-size: 1rem;
+  }
+  button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: #0071e3;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #0077ed;
+  }
+  .result {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f0f7ff;
+    border-radius: 8px;
+    text-align: center;
+    display: none;
+  }
+  .result.show {
+    display: block;
+  }
+  .result .number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #0071e3;
+  }
+  .result .label {
+    font-size: 0.85rem;
+    color: #6e6e73;
+    margin-top: 4px;
+  }
+  .detail {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #6e6e73;
+  }
+  .error {
+    color: #d70015;
+    font-size: 0.85rem;
+    margin-top: 10px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<h1>Unit Stack Calculator</h1>
+<p class="subtitle">Minimum attacking units needed to match defender's total health</p>
+
+<div class="card">
+  <label for="defenderHealth">Defender total stack health</label>
+  <input type="number" id="defenderHealth" value="2262000" step="1">
+
+  <label for="baseStrength">Attacker base strength</label>
+  <input type="number" id="baseStrength" value="3900" step="1">
+
+  <label for="playerBonus">Player bonus (%)</label>
+  <input type="number" id="playerBonus" placeholder="e.g. 250" step="0.01">
+
+  <label for="targetBonus">Target-based bonus (%)</label>
+  <input type="number" id="targetBonus" value="144" step="0.01">
+
+  <button onclick="calculate()">Calculate</button>
+
+  <div class="error" id="error"></div>
+
+  <div class="result" id="result">
+    <div class="number" id="unitsNeeded">0</div>
+    <div class="label">attacking units needed</div>
+    <div class="detail" id="detail"></div>
+  </div>
+</div>
+
+<script>
+function calculate() {
+  const errorEl = document.getElementById('error');
+  const resultEl = document.getElementById('result');
+  errorEl.style.display = 'none';
+  resultEl.classList.remove('show');
+
+  const defenderHealth = parseFloat(document.getElementById('defenderHealth').value);
+  const baseStrength = parseFloat(document.getElementById('baseStrength').value);
+  const playerBonusInput = document.getElementById('playerBonus').value;
+  const targetBonus = parseFloat(document.getElementById('targetBonus').value);
+
+  const playerBonus = playerBonusInput === '' ? 0 : parseFloat(playerBonusInput);
+
+  // Validation
+  if (isNaN(defenderHealth) || defenderHealth <= 0) {
+    showError('Please enter a valid defender total health (> 0).');
+    return;
+  }
+  if (isNaN(baseStrength) || baseStrength <= 0) {
+    showError('Please enter a valid attacker base strength (> 0).');
+    return;
+  }
+  if (isNaN(playerBonus) || playerBonus < 0 || playerBonus > 10000) {
+    showError('Player bonus must be between 0 and 10000 percent.');
+    return;
+  }
+  if (isNaN(targetBonus) || targetBonus < 0 || targetBonus > 1000) {
+    showError('Target-based bonus must be between 0 and 1000 percent.');
+    return;
+  }
+
+  // Effective strength per unit
+  const effectiveStrength = baseStrength * (1 + (playerBonus / 100)  + (targetBonus / 100));
+
+  // Minimum units needed (round up)
+  const unitsNeeded = Math.ceil(defenderHealth / effectiveStrength);
+
+  document.getElementById('unitsNeeded').textContent = unitsNeeded.toLocaleString();
+  document.getElementById('detail').textContent =
+    `Effective strength per unit: ${effectiveStrength.toLocaleString(undefined, {maximumFractionDigits: 2})} ` +
+    `(base ${baseStrength} × player bonus ${playerBonus}% × target bonus ${targetBonus}%)`;
+
+  resultEl.classList.add('show');
+}
+
+function showError(msg) {
+  const errorEl = document.getElementById('error');
+  errorEl.textContent = msg;
+  errorEl.style.display = 'block';
+}
+
+// Calculate on load with default values
+window.addEventListener('DOMContentLoaded', calculate);
+</script>
+
+</body>
+</html>
