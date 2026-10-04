@@ -62,6 +62,13 @@
   button:hover {
     background: #0077ed;
   }
+  button.secondary {
+    background: #34c759;
+    margin-top: 30px;
+  }
+  button.secondary:hover {
+    background: #30b84f;
+  }
   .result {
     margin-top: 20px;
     padding: 16px;
@@ -98,15 +105,50 @@
     margin: 0 0 8px;
     font-size: 1.05rem;
   }
+  #calculationsContainer {
+    margin-top: 20px;
+  }
+  .calculation-card {
+    position: relative;
+  }
+  .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #ff3b30;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .close-btn:hover {
+    background: #e63329;
+  }
+  .target-display {
+    margin-top: 14px;
+    padding: 10px;
+    background: #f0f7ff;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #0071e3;
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
 
 <h1>Unit Stack Calculator</h1>
-<p class="subtitle">Minimum attacking units needed to match defender's total health</p>
+<p class="subtitle">Calculate stacks with target health derived from first calculation</p>
 
 <div class="card">
-  <h2 class="section-title">Match defender health</h2>
+  <h2 class="section-title">First Stack (Base)</h2>
   <label for="defenderHealth">Defender total stack health</label>
   <input type="number" id="defenderHealth" value="2262000" step="1">
 
@@ -119,7 +161,7 @@
   <label for="targetBonus">Target-based bonus (%)</label>
   <input type="number" id="targetBonus" value="144" step="0.01">
 
-  <button onclick="calculateMatchHealth()">Calculate</button>
+  <button onclick="calculateFirstStack()">Calculate</button>
 
   <div class="error" id="error"></div>
 
@@ -130,36 +172,15 @@
   </div>
 </div>
 
-<div class="card">
-  <h2 class="section-title">Exceed defender health by target overkill</h2>
-  <label for="defenderHealthOverkill">Defender total stack health</label>
-  <input type="number" id="defenderHealthOverkill" value="2262000" step="1">
+<button class="secondary" onclick="addCalculation()">+ Add Calculation</button>
 
-  <label for="baseStrengthOverkill">Attacker base strength</label>
-  <input type="number" id="baseStrengthOverkill" value="3900" step="1">
-
-  <label for="playerBonusOverkill">Player bonus (%)</label>
-  <input type="number" id="playerBonusOverkill" placeholder="e.g. 250" step="0.01">
-
-  <label for="targetBonusOverkill">Target-based bonus (%)</label>
-  <input type="number" id="targetBonusOverkill" value="144" step="0.01">
-
-  <label for="overkillPercent">Desired overkill (%)</label>
-  <input type="number" id="overkillPercent" value="25" step="0.01">
-
-  <button onclick="calculateOverkill()">Calculate overkill</button>
-
-  <div class="error" id="errorOverkill"></div>
-
-  <div class="result" id="resultOverkill">
-    <div class="number" id="overkillUnitsNeeded">0</div>
-    <div class="label">attacking units needed</div>
-    <div class="detail" id="detailOverkill"></div>
-  </div>
-</div>
+<div id="calculationsContainer"></div>
 
 <script>
-function calculateMatchHealth() {
+let calculationCount = 0;
+let firstStackData = null;
+
+function calculateFirstStack() {
   const errorEl = document.getElementById('error');
   const resultEl = document.getElementById('result');
   errorEl.style.display = 'none';
@@ -192,6 +213,14 @@ function calculateMatchHealth() {
   const effectiveStrength = baseStrength * (1 + (playerBonus / 100) + (targetBonus / 100));
   const unitsNeeded = Math.ceil(defenderHealth / effectiveStrength);
 
+  // Store first stack data for follow-up calculations
+  firstStackData = {
+    baseStrength: baseStrength,
+    playerBonus: playerBonus,
+    targetBonus: targetBonus,
+    targetValue: baseStrength * (1 + (playerBonus / 100))
+  };
+
   document.getElementById('unitsNeeded').textContent = unitsNeeded.toLocaleString();
   document.getElementById('detail').textContent =
     `Effective strength per unit: ${effectiveStrength.toLocaleString(undefined, {maximumFractionDigits: 2})} ` +
@@ -200,51 +229,93 @@ function calculateMatchHealth() {
   resultEl.classList.add('show');
 }
 
-function calculateOverkill() {
-  const errorEl = document.getElementById('errorOverkill');
-  const resultEl = document.getElementById('resultOverkill');
+function addCalculation() {
+  if (!firstStackData) {
+    alert('Please calculate the first stack first.');
+    return;
+  }
+
+  calculationCount++;
+  const container = document.getElementById('calculationsContainer');
+  
+  const calcId = `calc-${calculationCount}`;
+  const targetHealth = firstStackData.targetValue;
+  
+  const card = document.createElement('div');
+  card.className = 'card calculation-card';
+  card.id = calcId;
+  
+  card.innerHTML = `
+    <button class="close-btn" onclick="removeCalculation('${calcId}')">×</button>
+    <h2 class="section-title">Stack ${calculationCount + 1}</h2>
+    
+    <div class="target-display">
+      Target health (from first stack): ${targetHealth.toLocaleString(undefined, {maximumFractionDigits: 2})}
+    </div>
+
+    <label for="baseStrength-${calculationCount}">Attacker base strength</label>
+    <input type="number" id="baseStrength-${calculationCount}" value="${firstStackData.baseStrength}" step="1">
+
+    <label for="playerBonus-${calculationCount}">Player bonus (%)</label>
+    <input type="number" id="playerBonus-${calculationCount}" value="${firstStackData.playerBonus}" step="0.01">
+
+    <label for="targetBonus-${calculationCount}">Target-based bonus (%)</label>
+    <input type="number" id="targetBonus-${calculationCount}" value="${firstStackData.targetBonus}" step="0.01">
+
+    <button onclick="calculateFollowUp(${calculationCount})">Calculate</button>
+
+    <div class="error" id="error-${calculationCount}"></div>
+
+    <div class="result" id="result-${calculationCount}">
+      <div class="number" id="unitsNeeded-${calculationCount}">0</div>
+      <div class="label">attacking units needed</div>
+      <div class="detail" id="detail-${calculationCount}"></div>
+    </div>
+  `;
+  
+  container.appendChild(card);
+}
+
+function calculateFollowUp(id) {
+  const errorEl = document.getElementById(`error-${id}`);
+  const resultEl = document.getElementById(`result-${id}`);
   errorEl.style.display = 'none';
   resultEl.classList.remove('show');
 
-  const defenderHealth = parseFloat(document.getElementById('defenderHealthOverkill').value);
-  const baseStrength = parseFloat(document.getElementById('baseStrengthOverkill').value);
-  const playerBonusInput = document.getElementById('playerBonusOverkill').value;
-  const targetBonus = parseFloat(document.getElementById('targetBonusOverkill').value);
-  const overkillPercent = parseFloat(document.getElementById('overkillPercent').value);
-
+  const baseStrength = parseFloat(document.getElementById(`baseStrength-${id}`).value);
+  const playerBonusInput = document.getElementById(`playerBonus-${id}`).value;
+  const targetBonus = parseFloat(document.getElementById(`targetBonus-${id}`).value);
+  
   const playerBonus = playerBonusInput === '' ? 0 : parseFloat(playerBonusInput);
+  const defenderHealth = firstStackData.targetValue;
 
-  if (isNaN(defenderHealth) || defenderHealth <= 0) {
-    showErrorOverkill('Please enter a valid defender total health (> 0).');
-    return;
-  }
   if (isNaN(baseStrength) || baseStrength <= 0) {
-    showErrorOverkill('Please enter a valid attacker base strength (> 0).');
+    showErrorFollowUp(`Please enter a valid attacker base strength (> 0).`, id);
     return;
   }
   if (isNaN(playerBonus) || playerBonus < 0 || playerBonus > 10000) {
-    showErrorOverkill('Player bonus must be between 0 and 10000 percent.');
+    showErrorFollowUp(`Player bonus must be between 0 and 10000 percent.`, id);
     return;
   }
   if (isNaN(targetBonus) || targetBonus < 0 || targetBonus > 1000) {
-    showErrorOverkill('Target-based bonus must be between 0 and 1000 percent.');
-    return;
-  }
-  if (isNaN(overkillPercent) || overkillPercent < 0 || overkillPercent > 10000) {
-    showErrorOverkill('Overkill must be between 0 and 10000 percent.');
+    showErrorFollowUp(`Target-based bonus must be between 0 and 1000 percent.`, id);
     return;
   }
 
   const effectiveStrength = baseStrength * (1 + (playerBonus / 100) + (targetBonus / 100));
-  const targetHealth = defenderHealth * (1 + (overkillPercent / 100));
-  const unitsNeeded = Math.ceil(targetHealth / effectiveStrength);
+  const unitsNeeded = Math.ceil(defenderHealth / effectiveStrength);
 
-  document.getElementById('overkillUnitsNeeded').textContent = unitsNeeded.toLocaleString();
-  document.getElementById('detailOverkill').textContent =
-    `Target health to exceed: ${targetHealth.toLocaleString(undefined, {maximumFractionDigits: 2})} ` +
-    `(defender health × ${(1 + (overkillPercent / 100)).toFixed(2)} with ${overkillPercent}% overkill)`;
+  document.getElementById(`unitsNeeded-${id}`).textContent = unitsNeeded.toLocaleString();
+  document.getElementById(`detail-${id}`).textContent =
+    `Effective strength per unit: ${effectiveStrength.toLocaleString(undefined, {maximumFractionDigits: 2})} ` +
+    `(base ${baseStrength} × player bonus ${playerBonus}% × target bonus ${targetBonus}%)`;
 
   resultEl.classList.add('show');
+}
+
+function removeCalculation(calcId) {
+  const card = document.getElementById(calcId);
+  card.remove();
 }
 
 function showError(msg) {
@@ -253,15 +324,14 @@ function showError(msg) {
   errorEl.style.display = 'block';
 }
 
-function showErrorOverkill(msg) {
-  const errorEl = document.getElementById('errorOverkill');
+function showErrorFollowUp(msg, id) {
+  const errorEl = document.getElementById(`error-${id}`);
   errorEl.textContent = msg;
   errorEl.style.display = 'block';
 }
 
 window.addEventListener('DOMContentLoaded', function () {
-  calculateMatchHealth();
-  calculateOverkill();
+  calculateFirstStack();
 });
 </script>
 
