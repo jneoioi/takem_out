@@ -7,7 +7,7 @@
 <style>
   body {
     font-family: system-ui, Arial, sans-serif;
-    max-width: 480px;
+    max-width: 520px;
     margin: 40px auto;
     padding: 0 16px;
     background: #f5f5f7;
@@ -28,6 +28,9 @@
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  .card + .card {
+    margin-top: 20px;
   }
   label {
     display: block;
@@ -91,6 +94,10 @@
     margin-top: 10px;
     display: none;
   }
+  .section-title {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+  }
 </style>
 </head>
 <body>
@@ -99,6 +106,7 @@
 <p class="subtitle">Minimum attacking units needed to match defender's total health</p>
 
 <div class="card">
+  <h2 class="section-title">Match defender health</h2>
   <label for="defenderHealth">Defender total stack health</label>
   <input type="number" id="defenderHealth" value="2262000" step="1">
 
@@ -111,7 +119,7 @@
   <label for="targetBonus">Target-based bonus (%)</label>
   <input type="number" id="targetBonus" value="144" step="0.01">
 
-  <button onclick="calculate()">Calculate</button>
+  <button onclick="calculateMatchHealth()">Calculate</button>
 
   <div class="error" id="error"></div>
 
@@ -122,8 +130,36 @@
   </div>
 </div>
 
+<div class="card">
+  <h2 class="section-title">Exceed defender health by target overkill</h2>
+  <label for="defenderHealthOverkill">Defender total stack health</label>
+  <input type="number" id="defenderHealthOverkill" value="2262000" step="1">
+
+  <label for="baseStrengthOverkill">Attacker base strength</label>
+  <input type="number" id="baseStrengthOverkill" value="3900" step="1">
+
+  <label for="playerBonusOverkill">Player bonus (%)</label>
+  <input type="number" id="playerBonusOverkill" placeholder="e.g. 250" step="0.01">
+
+  <label for="targetBonusOverkill">Target-based bonus (%)</label>
+  <input type="number" id="targetBonusOverkill" value="144" step="0.01">
+
+  <label for="overkillPercent">Desired overkill (%)</label>
+  <input type="number" id="overkillPercent" value="25" step="0.01">
+
+  <button onclick="calculateOverkill()">Calculate overkill</button>
+
+  <div class="error" id="errorOverkill"></div>
+
+  <div class="result" id="resultOverkill">
+    <div class="number" id="overkillUnitsNeeded">0</div>
+    <div class="label">attacking units needed</div>
+    <div class="detail" id="detailOverkill"></div>
+  </div>
+</div>
+
 <script>
-function calculate() {
+function calculateMatchHealth() {
   const errorEl = document.getElementById('error');
   const resultEl = document.getElementById('result');
   errorEl.style.display = 'none';
@@ -136,7 +172,6 @@ function calculate() {
 
   const playerBonus = playerBonusInput === '' ? 0 : parseFloat(playerBonusInput);
 
-  // Validation
   if (isNaN(defenderHealth) || defenderHealth <= 0) {
     showError('Please enter a valid defender total health (> 0).');
     return;
@@ -154,10 +189,7 @@ function calculate() {
     return;
   }
 
-  // Effective strength per unit
-  const effectiveStrength = baseStrength * (1 + (playerBonus / 100)  + (targetBonus / 100));
-
-  // Minimum units needed (round up)
+  const effectiveStrength = baseStrength * (1 + (playerBonus / 100) + (targetBonus / 100));
   const unitsNeeded = Math.ceil(defenderHealth / effectiveStrength);
 
   document.getElementById('unitsNeeded').textContent = unitsNeeded.toLocaleString();
@@ -168,14 +200,69 @@ function calculate() {
   resultEl.classList.add('show');
 }
 
+function calculateOverkill() {
+  const errorEl = document.getElementById('errorOverkill');
+  const resultEl = document.getElementById('resultOverkill');
+  errorEl.style.display = 'none';
+  resultEl.classList.remove('show');
+
+  const defenderHealth = parseFloat(document.getElementById('defenderHealthOverkill').value);
+  const baseStrength = parseFloat(document.getElementById('baseStrengthOverkill').value);
+  const playerBonusInput = document.getElementById('playerBonusOverkill').value;
+  const targetBonus = parseFloat(document.getElementById('targetBonusOverkill').value);
+  const overkillPercent = parseFloat(document.getElementById('overkillPercent').value);
+
+  const playerBonus = playerBonusInput === '' ? 0 : parseFloat(playerBonusInput);
+
+  if (isNaN(defenderHealth) || defenderHealth <= 0) {
+    showErrorOverkill('Please enter a valid defender total health (> 0).');
+    return;
+  }
+  if (isNaN(baseStrength) || baseStrength <= 0) {
+    showErrorOverkill('Please enter a valid attacker base strength (> 0).');
+    return;
+  }
+  if (isNaN(playerBonus) || playerBonus < 0 || playerBonus > 10000) {
+    showErrorOverkill('Player bonus must be between 0 and 10000 percent.');
+    return;
+  }
+  if (isNaN(targetBonus) || targetBonus < 0 || targetBonus > 1000) {
+    showErrorOverkill('Target-based bonus must be between 0 and 1000 percent.');
+    return;
+  }
+  if (isNaN(overkillPercent) || overkillPercent < 0 || overkillPercent > 10000) {
+    showErrorOverkill('Overkill must be between 0 and 10000 percent.');
+    return;
+  }
+
+  const effectiveStrength = baseStrength * (1 + (playerBonus / 100) + (targetBonus / 100));
+  const targetHealth = defenderHealth * (1 + (overkillPercent / 100));
+  const unitsNeeded = Math.ceil(targetHealth / effectiveStrength);
+
+  document.getElementById('overkillUnitsNeeded').textContent = unitsNeeded.toLocaleString();
+  document.getElementById('detailOverkill').textContent =
+    `Target health to exceed: ${targetHealth.toLocaleString(undefined, {maximumFractionDigits: 2})} ` +
+    `(defender health × ${(1 + (overkillPercent / 100)).toFixed(2)} with ${overkillPercent}% overkill)`;
+
+  resultEl.classList.add('show');
+}
+
 function showError(msg) {
   const errorEl = document.getElementById('error');
   errorEl.textContent = msg;
   errorEl.style.display = 'block';
 }
 
-// Calculate on load with default values
-window.addEventListener('DOMContentLoaded', calculate);
+function showErrorOverkill(msg) {
+  const errorEl = document.getElementById('errorOverkill');
+  errorEl.textContent = msg;
+  errorEl.style.display = 'block';
+}
+
+window.addEventListener('DOMContentLoaded', function () {
+  calculateMatchHealth();
+  calculateOverkill();
+});
 </script>
 
 </body>
